@@ -1,7 +1,3 @@
-/** @type {import('jest').Config} */
-const config = {
+module.exports = {
   testMatch: ['**/_test_/**/*.spec.js'],
-  transform: {},
 };
-
-export default config;

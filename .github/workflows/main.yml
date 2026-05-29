@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: node --experimental-vm-modules node_modules/.bin/jest
+        run: npm test
 
   # ── Job 2: Build app (smoke-check the build script) ─────────────────────────
   build:
