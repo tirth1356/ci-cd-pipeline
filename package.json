@@ -4,30 +4,27 @@
   "description": "this is a nodejs demo app",
   "main": "app.js",
   "scripts": {
-    "start": "babel-node ./app.js",
+    "start": "node --experimental-vm-modules app.js",
     "test": "jest",
     "build": "echo Build completed successfully"
   },
   "jest": {
-    "testMatch": ["**/_test_/**/*.spec.js"]
+    "testMatch": ["**/_test_/**/*.spec.js"],
+    "transform": {}
   },
+  "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YannMjl/nodejs-demo-app.git"
+    "url": "git+https://github.com/tirth1356/ci-cd-pipeline.git"
   },
-  "keywords": ["node", "nodejs", "express", "babel"],
-  "author": "Yann Mulonda",
+  "keywords": ["node", "nodejs", "express", "ci-cd", "docker", "github-actions"],
+  "author": "tirth1356",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/YannMjl/nodejs-demo-app/issues"
-  },
-  "homepage": "https://github.com/YannMjl/nodejs-demo-app#readme",
   "dependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset": "^1.1.7",
-    "babel-preset-env": "^0.0.0",
-    "express": "^4.17.1",
-    "jest": "^27.0.3"
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   },
   "engines": {
     "node": "20.x"
