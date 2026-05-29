@@ -2,23 +2,20 @@
   "name": "nodejs-demo-app",
   "version": "1.0.0",
   "description": "this is a nodejs demo app",
-  "type": "module",
   "main": "app.js",
   "scripts": {
     "start": "babel-node ./app.js",
     "test": "jest",
-    "build": "echo Test build completed! No package was uploaded"
+    "build": "echo Build completed successfully"
+  },
+  "jest": {
+    "testMatch": ["**/_test_/**/*.spec.js"]
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/YannMjl/nodejs-demo-app.git"
   },
-  "keywords": [
-    "node",
-    "nodejs",
-    "express",
-    "babel"
-  ],
+  "keywords": ["node", "nodejs", "express", "babel"],
   "author": "Yann Mulonda",
   "license": "ISC",
   "bugs": {
@@ -33,6 +30,6 @@
     "jest": "^27.0.3"
   },
   "engines": {
-    "node": "14.x"
+    "node": "20.x"
   }
 }

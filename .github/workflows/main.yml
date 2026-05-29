@@ -1,153 +1,108 @@
-# This is a basic workflow to help you get started with Actions
+name: CI/CD Pipeline
 
-name: CI-CD
-
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains multiple jobs
-  build_test:
-    name: Build & Test App
-    # The type of runner that the job will run on
+  # ── Job 1: Install dependencies, run tests ──────────────────────────────────
+  test:
+    name: Test
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [20.x]
 
-    # Run build and test only if the commit message says build app
-    #if: "contains(github.event.commits[0].message, '[build app]')"
-    
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: setup node
-        uses: actions/setup-node@master
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
 
-      # install applicaion dependencies
       - name: Install dependencies
-        run: |
-          npm install
-          npm ci 
-      # build and test the apps     
-      - name: build & test
-        run: |
-          npm run build
-          npm run test
-  push_to_Docker_Hub:
-      name: Push Images to DockerHub
-      # The type of runner that the job will run on
-      runs-on: ubuntu-latest
-      # build docker image and push to docker hub
-      # only if the app build and test successfully
-      needs: [build_test]
+        run: npm ci
 
-      steps:
-        - name: checkout repo
-          uses: actions/checkout@v2
+      - name: Run tests
+        run: npm test
 
-        - name: Set up QEMU
-          uses: docker/setup-qemu-action@v1
-      
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v1
-
-        - name: Login to DockerHub
-          uses: docker/login-action@v1
-          with:
-            username: ${{ secrets.DOCKERHUB_USERNAME }}
-            password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-        - name: Build and push
-          uses: docker/build-push-action@v2
-          with:
-            context: ./
-            file: ./Dockerfile
-            push: true
-            tags: ${{ secrets.DOCKERHUB_USERNAME }}/nodejs-demo:latest
-          
-        - name: Run the image in a container
-          uses: addnab/docker-run-action@v3
-          with:
-            image: ${{ secrets.DOCKERHUB_USERNAME }}/nodejs-demo:latest
-            run: |
-              echo "runing the docker image"
-              echo "Testing the nodejs  app endpoints"
-
-  deploy_to_heroku:
-    name: Deploy to Heroku
+  # ── Job 2: Build app (smoke-check the build script) ─────────────────────────
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    # only run this after deploying to docker
-    needs: [push_to_Docker_Hub]
-    steps:
-      - name: checkout repo
-        uses: actions/checkout@v2
-      # more info on deploy to heroku: 
-      # https://github.com/marketplace/actions/deploy-to-heroku
-      - name: deploy to Heroku
-        uses: akhileshns/heroku-deploy@v3.12.12
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          # build the app docker image using the Dockerfile
-          # and run that image in a container that's pushed to heroku
-          usedocker: true
+    needs: test
 
-  deploy_to_google_cloud:
-    name: Deploy to GCP
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # ── Job 3: Build Docker image and push to DockerHub ─────────────────────────
+  push_to_dockerhub:
+    name: Push to DockerHub
     runs-on: ubuntu-latest
-    # only deploy to GPC if and after deploying to Heroku successed
-    needs: [deploy_to_heroku]
+    needs: build
+    # Only push on actual pushes to main (not on PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-    # Add "id-token" with the intended permissions.
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-      
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Setup gcloud CLI
-      - name: setup gcloud CLI
-        uses: google-github-actions/auth@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
         with:
-          # makes sure you configure these and replace with the right value
-          workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-          service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
-      
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          version: '>= 363.0.0'
-      
-      # Deploy the app using kubernetes (deploy.yml)
-      - name: Use gcloud CLI to Deploy
-        # To run kubectl commands against a cluster created in Cloud Console, 
-        # from another computer, or by another member of the project, 
-        # you need to generate a kubeconfig entry in your environment.
-        # The rolling deployment is the standard default deployment to Kubernetes. 
-        # It works by slowly, one by one, replacing pods of the previous version of 
-        # your application with pods of the new version without any cluster downtime
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/nodejs-demo
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image runs
         run: |
-          gcloud config set compute/region us-central1
-          gcloud config set compute/zone us-central1-c
-          gcloud container clusters get-credentials node-demo-k8s
-          envsubst < deploy.yml
-          envsubst < deploy.yml | kubectl apply -f -
-          kubectl rollout status -w deployment/nodejs-demo-app
-          kubectl get all
+          docker run --rm -d --name test-container \
+            -p 30002:30002 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/nodejs-demo:latest
+          sleep 5
+          docker ps | grep test-container
+          docker stop test-container
